@@ -18,7 +18,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
-	write_seg(newSeg, size_to_create);
+	load_seg(newSeg, size_to_create);
 	// return new allocated memory
 	return &(newSeg->content[0]);
     }
@@ -54,17 +54,20 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	Segment* seg = rvm->find_by_ptr(segbases[i]);
 	if(seg == NULL){
 	    fprintf(sterr, "segment not exist !\n");
+	    delete trans;
 	    exit(-1);
 	}
 	else{
 	    if(seg->beingModified){
 		fprintf(sterr, "segment is under transaction !\n");
+		delete trans;
 		return -1;
 	    }
 	    else{
-		seg->beingModified = true;
-		Log log;
-		trans.emplace(seg->ptr, log);
+		seg->beingModified = true; /* mark it as busy */
+		trans->rvm = rvm;	   /* set the associated rvm */
+		Logs logs = new Logs;
+		trans->undo.emplace(seg->ptr, log); 
 	    }
 	}
     }
@@ -84,25 +87,40 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 	exit(-1);
     }
     else {
-	Transaction::iterator =tid->find(segbase);
-	if ( iterator == tid->end()){
+	Logs* logs = tid->find_logs(segbase);
+	if ( logs == NULL){
 	    fprintf(sterr, "segment does not belong to this transaction !\n");
 	    exit(-1);
 	}	
 	else {
-	    Log undoLog(offset, std::string(segbase+offset, size));
-	    iterator->second.push_back(undoLog);
+	    tid->append_log(logs, segbase, offset, size);
 	}
     }
 }
 
+/**
+ *
+ */
 void rvm_commit_trans(trans_t tid){
     if(tid == -1 || tid == NULL){
 	fprintf(sterr, "transaction does not exist !\n");
 	exit(-1);
     }
     else {
-	
+	Transaction::iterator iter;
+	for (iter = tid->begin(); iter < tid->end(); iter++) {
+	    std::string logname = (tid->rmv->directory) + 
+		ofstream()
+	    void *segbase = iter->first;
+	    std::vector<Log> &logs = iter->second;
+	    for (int i = 0; i < logs.size(); i++) {
+		
+		int offset = logs[i].first;
+		
+	    }
+
+	}
+
 	
     }
 }
