@@ -18,7 +18,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
-	load_seg(newSeg, size_to_create);
+	rvm->load_seg(newSeg, size_to_create);
 	// return new allocated memory
 	return &(newSeg->content[0]);
     }
@@ -34,7 +34,7 @@ void rvm_unmap(rvm_t rvm, void *segbase) {
 	rvm->delete_seg(seg);
     }
     else{
-	fprintf(sterr, "unmap non-existing segment !\n");
+	fprintf(stderr, "unmap non-existing segment !\n");
 	exit(-1);
     }
 }
@@ -53,15 +53,15 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
     for (int i = 0; i < numsegs; i++) {
 	Segment* seg = rvm->find_by_ptr(segbases[i]);
 	if(seg == NULL){
-	    fprintf(sterr, "segment not exist !\n");
+	    fprintf(stderr, "segment not exist !\n");
 	    delete trans;
 	    exit(-1);
 	}
 	else{
 	    if(seg->beingModified){
-		fprintf(sterr, "segment is under transaction !\n");
+		fprintf(stderr, "segment is under transaction !\n");
 		delete trans;
-		return -1;
+		return (trans_t) -1;
 	    }
 	    else{
 		seg->beingModified = true; /* mark it as busy */
@@ -83,13 +83,13 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
  */
 void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
     if(tid == -1 || tid == NULL){
-	fprintf(sterr, "transaction does not exist !\n");
+	fprintf(stderr, "transaction does not exist !\n");
 	exit(-1);
     }
     else {
 	Logs* logs = tid->find_logs(segbase);
 	if ( logs == NULL){
-	    fprintf(sterr, "segment does not belong to this transaction !\n");
+	    fprintf(stderr, "segment does not belong to this transaction !\n");
 	    exit(-1);
 	}	
 	else {
@@ -103,28 +103,28 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
  */
 void rvm_commit_trans(trans_t tid){
     if(tid == -1 || tid == NULL){
-	fprintf(sterr, "transaction does not exist !\n");
+	fprintf(stderr, "transaction does not exist !\n");
 	exit(-1);
     }
     else {
-	Transaction::iterator iter;
-	for (iter = tid->begin(); iter < tid->end(); iter++) {
-	    std::string logname = (tid->rmv->directory) + 
-		ofstream()
-	    void *segbase = iter->first;
-	    std::vector<Log> &logs = iter->second;
-	    for (int i = 0; i < logs.size(); i++) {
-		
-		int offset = logs[i].first;
-		
-	    }
-
+	tid->commit();
+	delete tid;
 	}
-
-	
     }
 }
-void rvm_abort_trans(trans_t tid);
+
+
+void rvm_abort_trans(trans_t tid){
+    if(tid == -1 || tid == NULL){
+	fprintf(stderr, "transaction does not exist !\n");
+	exit(-1);
+    }
+    else {
+	tid->abort();
+	delete tid;
+    }
+}
+}
 void rvm_truncate_log(rvm_t rvm);
 
 
