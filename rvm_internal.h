@@ -11,9 +11,9 @@
 #include<cstring>
 
 typedef struct {
-    std::string name;
-    std::string content;
-    void *ptr;
+    std::string name;		/* the name of the segment */
+    std::string content;	/* the content */
+    void *ptr;			/* first address of the content */
     bool beingModified;		/* busy bit */
 } Segment;
 
@@ -28,8 +28,8 @@ typedef std::unordered_map<void*, Logs* > LogsMap;
 class Rvmt { 
 public:    
     std::string directory;	/* the directory name */
-    SegNameMap seg_name; /* array of existing segments */
-    SegPtrMap seg_ptr;
+    SegNameMap seg_name;     /* list of existing segments */
+    SegPtrMap seg_ptr;	     /* list of existing segments */
         
     Rvmt(const char *dir) : directory(dir) {
 	// if the directory already exists, then mkdir return -1
@@ -54,7 +54,8 @@ public:
     Rvmt *rvm;
     LogsMap undo;
 
-    Logs* find_logs(void *segbase);    
+    Logs* find_logs(void *segbase);
+    void create_logs(void* segbase);
     void append_log(Logs* logs, void *segbase, int offset, int size);
     void commit();
     void abort();
@@ -82,6 +83,7 @@ Segment* Rvmt::find_by_ptr(void *p){
 Segment* Rvmt::create_seg(std::string segname, int size){
     Segment* seg = new Segment; 
     (seg->content).resize(size);
+    seg->ptr = (void*) &(seg->content[0]);
     seg_name.emplace (segname, seg); /* insert new entry to hash table */
     seg_ptr.emplace (&(seg->content[0]), seg);
     
@@ -137,6 +139,11 @@ Logs* Transaction::find_logs(void *segbase){
     else return iter->second;
 }
 
+void Transaction::create_logs(void* segbase){
+    Logs *logs = new Logs;
+    undo.emplace(segbase, logs);
+}
+
 void Transaction::append_log(Logs* logs, void *segbase, int offset, int size){
     Log a(offset, std::string( (char*)segbase + offset, size));
     logs->push_back(a);
@@ -157,7 +164,7 @@ void Transaction::commit(){
 		     std::ofstream::out | std::ofstream::app);
 	 
 	/* write changed data (offset, length, new data) onto disk */
-	for (int i = 0; i < logs->size(); i++) {
+	for (size_t i = 0; i < logs->size(); i++) {
 	    int offset = (*logs)[i].first;
 	    int len = (*logs)[i].second.size();
 	    logfile.write((char*)&offset, sizeof(int));
@@ -178,7 +185,7 @@ void Transaction::abort(){
 	Logs* logs = iter->second;
 	    	 
 	/* copy the logs back to segments in memory */
-	for (int i = 0; i < logs->size(); i++) {
+	for (size_t i = 0; i < logs->size(); i++) {
 	    int offset = (*logs)[i].first;
 	    int len = (*logs)[i].second.size();
 	    char *a = &( ( (*logs)[i].second )[0] );

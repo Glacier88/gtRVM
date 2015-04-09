@@ -1,0 +1,16 @@
+Implementation structure:
+
+We use two classes to realize the functionality of 
+RVM: 
+     Rvmt()  && Transaction()
+The former is responsible for managing the mapped
+segments and the latter is responsible for managing
+undo copies, redo logs and log truncation.
+
+In Rvmt(), two hash tables 
+   <segname, segment*> &&  <segbase, segment*>
+are used to store information
+about the mapped segments. The two hash table have the
+same contents but different keys, since the APIs 
+requires looks up both by segment name and its address.
+

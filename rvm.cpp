@@ -66,8 +66,7 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	    else{
 		seg->beingModified = true; /* mark it as busy */
 		trans->rvm = rvm;	   /* set the associated rvm */
-		Logs logs = new Logs;
-		trans->undo.emplace(seg->ptr, log); 
+		trans->create_logs(seg->ptr); /* create log for this segment */
 	    }
 	}
     }
@@ -82,7 +81,7 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
  * 3. It is there => create the undo log
  */
 void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
-    if(tid == -1 || tid == NULL){
+    if( tid == (trans_t) -1 || tid == NULL){
 	fprintf(stderr, "transaction does not exist !\n");
 	exit(-1);
     }
@@ -102,7 +101,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
  *
  */
 void rvm_commit_trans(trans_t tid){
-    if(tid == -1 || tid == NULL){
+    if(tid == (trans_t) -1 || tid == NULL){
 	fprintf(stderr, "transaction does not exist !\n");
 	exit(-1);
     }
@@ -110,12 +109,11 @@ void rvm_commit_trans(trans_t tid){
 	tid->commit();
 	delete tid;
 	}
-    }
 }
 
 
 void rvm_abort_trans(trans_t tid){
-    if(tid == -1 || tid == NULL){
+    if(tid == (trans_t) -1 || tid == NULL){
 	fprintf(stderr, "transaction does not exist !\n");
 	exit(-1);
     }
@@ -124,7 +122,9 @@ void rvm_abort_trans(trans_t tid){
 	delete tid;
     }
 }
+
+void rvm_truncate_log(rvm_t rvm){
+
 }
-void rvm_truncate_log(rvm_t rvm);
 
 
