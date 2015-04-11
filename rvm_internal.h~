@@ -19,7 +19,6 @@ typedef struct {
 
 typedef std::unordered_map<std::string, Segment*> SegNameMap;
 typedef std::unordered_map<void*, Segment*> SegPtrMap;
-
 typedef std::pair<int, std::string> Log;
 typedef std::vector<Log> Logs;
 typedef std::unordered_map<void*, Logs* > LogsMap;
@@ -35,9 +34,7 @@ public:
 	// if the directory already exists, then mkdir return -1
 	mkdir(dir, 0755); //create directory for log files
     }
-    
     ~Rvmt(){}   
-    
     Segment* find_by_name(std::string segname);
     Segment* find_by_ptr(void *p);    
     Segment* create_seg(std::string segname, int size);
@@ -45,27 +42,16 @@ public:
     void load_seg(Segment *seg, int size_to_create);
     
 };
-
 typedef Rvmt* rvm_t;		/* rvmt points to _rvm_t  */
-
-
 class Transaction {
 public:
     Rvmt *rvm;
     LogsMap undo;
-
     Logs* find_logs(void *segbase);
     void create_logs(void* segbase);
     void append_log(Logs* logs, void *segbase, int offset, int size);
     void commit();
     void abort();
-
 };
-
 typedef Transaction* trans_t;
-
-
-
-
-
 #endif 		/* RVM_INTERNAL_H */

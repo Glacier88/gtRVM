@@ -18,6 +18,7 @@ Segment* Rvmt::find_by_ptr(void *p){
 
 Segment* Rvmt::create_seg(std::string segname, int size){
     Segment* seg = new Segment; 
+    seg->name=segname;
     (seg->content).resize(size);
     seg->ptr = (void*) &(seg->content[0]);
     seg_name.emplace (segname, seg); /* insert new entry to hash table */
@@ -36,7 +37,9 @@ void Rvmt::delete_seg(Segment *seg){
 
 void Rvmt::load_seg(Segment *seg, int size_to_create){
     std::fstream file;
-    file.open(directory + seg->name, std::ifstream::in | std::ifstream::out);
+    //Debug
+    file.open(directory+"/"+seg->name,std::ios::out|std::ios::binary);
+    fprintf(stderr, "file name: %s \n", (directory +"/"+seg->name).c_str());
 
     if (file) { // successfully open the file
 	/* get length of file: */
@@ -94,7 +97,8 @@ void Transaction::commit(){
 
 	/* open the log file */
 	std::string segname = seg->name; 
-	std::string logFileName = rvm->directory + segname;
+        //Debug
+	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
 	logfile.open(logFileName, std::ofstream::binary | 
 		     std::ofstream::out | std::ofstream::app);
@@ -154,6 +158,11 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
+	//Debug
+	if(newSeg!=NULL)
+		fprintf(stderr,"segment created!\n");
+	else
+		fprintf(stderr,"segment not created!\n");
 	rvm->load_seg(newSeg, size_to_create);
 	// return new allocated memory
 	return &(newSeg->content[0]);
