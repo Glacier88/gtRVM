@@ -23,7 +23,6 @@ Segment* Rvmt::create_seg(std::string segname, int size){
     seg->ptr = (void*) &(seg->content[0]);
     seg_name.emplace (segname, seg); /* insert new entry to hash table */
     seg_ptr.emplace (&(seg->content[0]), seg);
-    
     return seg;
 }
 
@@ -39,7 +38,7 @@ void Rvmt::load_seg(Segment *seg, int size_to_create){
     std::fstream file;
     //Debug
     file.open(directory+"/"+seg->name,std::ios::out|std::ios::binary);
-    fprintf(stderr, "file name: %s \n", (directory +"/"+seg->name).c_str());
+    //fprintf(stderr, "file name: %s \n", (directory +"/"+seg->name).c_str());
 
     if (file) { // successfully open the file
 	/* get length of file: */
@@ -89,8 +88,7 @@ void Transaction::append_log(Logs* logs, void *segbase, int offset, int size){
 }
 
 void Transaction::commit(){
-    for(LogsMap::iterator iter = undo.begin(); iter != undo.end(); iter++){
-	    
+    for(LogsMap::iterator iter = undo.begin(); iter != undo.end(); iter++){    
 	void* segbase = iter->first;
 	Logs* logs = iter->second;
 	Segment* seg = rvm -> find_by_ptr(segbase); 
@@ -159,10 +157,10 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
 	//Debug
-	if(newSeg!=NULL)
-		fprintf(stderr,"segment created!\n");
-	else
-		fprintf(stderr,"segment not created!\n");
+	//if(newSeg!=NULL)
+		//fprintf(stderr,"segment created!\n");
+	//else
+		//fprintf(stderr,"segment not created!\n");
 	rvm->load_seg(newSeg, size_to_create);
 	// return new allocated memory
 	return &(newSeg->content[0]);
@@ -185,12 +183,17 @@ void rvm_unmap(rvm_t rvm, void *segbase) {
 }
 
 // two cases :
-// 1. find the segname, then remove the segments in memory and disk
 // 2. not find the segname, rm the segment on disk.
 // 3. not find the segname, and also not on disk, return.
 void rvm_destroy(rvm_t rvm, const char *segname) {
-
-    
+	Segment* seg=rvm->find_by_name(segname);
+	//Should not be called if the segment is mapped
+	if(seg!=NULL)
+		return;
+        std::string seg_file=rvm->directory+"/"+segname;
+	unlink(seg_file.c_str());
+	std::string log_file=seg_file.append(".log");
+	unlink(log_file.c_str());
 }
 
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){

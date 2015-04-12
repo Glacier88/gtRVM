@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <fstream>
 #include <cassert>
-#include<cstring>
+#include <cstring>
 
 typedef struct {
     std::string name;		/* the name of the segment */
