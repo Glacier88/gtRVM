@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstring>
 #include <unistd.h>
+#include <dirent.h>
 
 typedef struct {
     std::string name;		/* the name of the segment */

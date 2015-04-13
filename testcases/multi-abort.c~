@@ -20,7 +20,7 @@ int main(int argc, char **argv)
      rvm_t rvm;
      char* segs[2];
      trans_t trans;
-
+printf("first round finished\n");
      /* initialize */
      rvm = rvm_init("rvm_segments");
 
@@ -29,6 +29,7 @@ int main(int argc, char **argv)
 
      segs[0] = (char*) rvm_map(rvm, SEGNAME0, 1000);
      segs[1] = (char*) rvm_map(rvm, SEGNAME1, 1000);
+      printf(stderr,"first round finished\n");
 
      /* write in some initial data */
      trans = rvm_begin_trans(rvm, 2, (void **) segs);

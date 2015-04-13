@@ -35,10 +35,13 @@ void Rvmt::delete_seg(Segment *seg){
 }
 
 void Rvmt::load_seg(Segment *seg, int size_to_create){
-    std::fstream file;
+    std::fstream file(directory+"/"+seg->name,std::fstream::binary | std::fstream::out | std::fstream::in);
     //Debug
-    file.open(directory+"/"+seg->name,std::ios::out|std::ios::binary);
-    //fprintf(stderr, "file name: %s \n", (directory +"/"+seg->name).c_str());
+    if(!file){
+	//std::fstream file;
+    	file.open(directory+"/"+seg->name,std::fstream::binary | std::fstream::out);
+	//fprintf(stdout, "new back store created ! \n");
+    }
 
     if (file) { // successfully open the file
 	/* get length of file: */
@@ -95,6 +98,11 @@ void Transaction::commit(){
 
 	/* open the log file */
 	std::string segname = seg->name; 
+	//open the back store
+	std::fstream seg_file;
+	seg_file.open(segname.c_str(), std::fstream::out|std::fstream::binary);
+	if(seg_file==NULL)
+		fprintf(stdout, "cannot open the file %s \n", segname.c_str());
         //Debug
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
@@ -108,10 +116,14 @@ void Transaction::commit(){
 	    logfile.write((char*)&offset, sizeof(int));
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
+	    //debug
+	    //seg_file.seekp(offset);
+	    //seg_file.write((char*)segbase+offset, len);
 	}
 	    
 	logfile.close();
 	seg->beingModified = false; /* reset the busy bit */
+	fprintf(stderr, "reset seg %s \n", segname.c_str());
 	delete logs;
     }
 }
@@ -156,6 +168,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
+        
 	//Debug
 	//if(newSeg!=NULL)
 		//fprintf(stderr,"segment created!\n");
@@ -183,8 +196,8 @@ void rvm_unmap(rvm_t rvm, void *segbase) {
 }
 
 // two cases :
-// 2. not find the segname, rm the segment on disk.
-// 3. not find the segname, and also not on disk, return.
+// 1. not find the segname, rm the segment on disk.
+// 2. not find the segname, and also not on disk, return.
 void rvm_destroy(rvm_t rvm, const char *segname) {
 	Segment* seg=rvm->find_by_name(segname);
 	//Should not be called if the segment is mapped
@@ -201,13 +214,13 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
     for (int i = 0; i < numsegs; i++) {
 	Segment* seg = rvm->find_by_ptr(segbases[i]);
 	if(seg == NULL){
-	    fprintf(stderr, "segment not exist !\n");
+	    fprintf(stderr, "segment:%s not exist !\n",seg->name.c_str());
 	    delete trans;
 	    exit(-1);
 	}
 	else{
 	    if(seg->beingModified){
-		fprintf(stderr, "segment is under transaction !\n");
+		fprintf(stderr, "segment:%s is under transaction !\n",seg->name.c_str());
 		delete trans;
 		return (trans_t) -1;
 	    }
@@ -240,7 +253,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 	    exit(-1);
 	}	
 	else {
-	    tid->append_log(logs, segbase, offset, size);
+	    tid->append_log(logs, segbase, offset, size);   
 	}
     }
 }
@@ -256,7 +269,7 @@ void rvm_commit_trans(trans_t tid){
     else {
 	tid->commit();
 	delete tid;
-	}
+    }
 }
 
 
@@ -272,7 +285,23 @@ void rvm_abort_trans(trans_t tid){
 }
 
 void rvm_truncate_log(rvm_t rvm){
-
+	DIR *store_dir;
+	dirent *dir_entry;
+	store_dir=opendir(rvm->directory.c_str());
+	if(store_dir==NULL)
+		return;
+	while((dir_entry=readdir(store_dir))!=NULL){
+		std::string fname=dir_entry->d_name;
+		size_t idx=fname.rfind(".log");
+		if(idx==std::string::npos)
+			continue;
+		std::string seg_name=fname.substr(0,idx);
+		std::string log_name=rvm->directory+"/"+seg_name+".log";
+		if(rvm->find_by_name(seg_name)==NULL){
+			std::string command="truncate -s 0\t"+log_name;
+			system(command.c_str());		
+	        }	
+	}
 }
 
 

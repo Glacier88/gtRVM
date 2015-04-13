@@ -9,6 +9,7 @@
 #include <fstream>
 #include <cassert>
 #include <cstring>
+#include <unistd.h>
 
 typedef struct {
     std::string name;		/* the name of the segment */
