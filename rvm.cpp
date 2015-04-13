@@ -123,7 +123,6 @@ void Transaction::commit(){
 	    
 	logfile.close();
 	seg->beingModified = false; /* reset the busy bit */
-	fprintf(stderr, "reset seg %s \n", segname.c_str());
 	delete logs;
     }
 }

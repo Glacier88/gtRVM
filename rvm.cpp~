@@ -43,8 +43,6 @@ void Rvmt::load_seg(Segment *seg, int size_to_create){
 	//fprintf(stdout, "new back store created ! \n");
     }
 
-    //fprintf(stderr, "file name: %s \n", (directory +"/"+seg->name).c_str());
-
     if (file) { // successfully open the file
 	/* get length of file: */
 	file.seekg (0, file.end); 
@@ -198,8 +196,8 @@ void rvm_unmap(rvm_t rvm, void *segbase) {
 }
 
 // two cases :
-// 2. not find the segname, rm the segment on disk.
-// 3. not find the segname, and also not on disk, return.
+// 1. not find the segname, rm the segment on disk.
+// 2. not find the segname, and also not on disk, return.
 void rvm_destroy(rvm_t rvm, const char *segname) {
 	Segment* seg=rvm->find_by_name(segname);
 	//Should not be called if the segment is mapped

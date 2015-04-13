@@ -16,7 +16,7 @@ typedef struct {
     std::string name;		/* the name of the segment */
     std::string content;	/* the content */
     void *ptr;			/* first address of the content */
-    bool beingModified;		/* busy bit */
+    bool beingModified=false;		/* busy bit */
 } Segment;
 
 typedef std::unordered_map<std::string, Segment*> SegNameMap;
