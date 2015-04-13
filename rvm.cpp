@@ -38,9 +38,7 @@ void Rvmt::load_seg(Segment *seg, int size_to_create){
     std::fstream file(directory+"/"+seg->name,std::fstream::binary | std::fstream::out | std::fstream::in);
     //Debug
     if(!file){
-	//std::fstream file;
     	file.open(directory+"/"+seg->name,std::fstream::binary | std::fstream::out);
-	//fprintf(stdout, "new back store created ! \n");
     }
 
     if (file) { // successfully open the file
@@ -100,9 +98,9 @@ void Transaction::commit(){
 	std::string segname = seg->name; 
 	//open the back store
 	std::fstream seg_file;
-	seg_file.open(segname.c_str(), std::fstream::out|std::fstream::binary);
+	seg_file.open((rvm->directory+"/"+segname).c_str(), std::fstream::in|std::fstream::out|std::fstream::binary);
 	if(seg_file==NULL)
-		fprintf(stdout, "cannot open the file %s \n", segname.c_str());
+		fprintf(stdout, "cannot open the file %s at commit\n", segname.c_str());
         //Debug
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
@@ -117,8 +115,8 @@ void Transaction::commit(){
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
 	    //debug
-	    //seg_file.seekp(offset);
-	    //seg_file.write((char*)segbase+offset, len);
+	    seg_file.seekp(offset);
+	    seg_file.write((char*)segbase+offset, len);
 	}
 	    
 	logfile.close();
@@ -167,12 +165,6 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
-        
-	//Debug
-	//if(newSeg!=NULL)
-		//fprintf(stderr,"segment created!\n");
-	//else
-		//fprintf(stderr,"segment not created!\n");
 	rvm->load_seg(newSeg, size_to_create);
 	// return new allocated memory
 	return &(newSeg->content[0]);

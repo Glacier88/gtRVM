@@ -100,9 +100,10 @@ void Transaction::commit(){
 	std::string segname = seg->name; 
 	//open the back store
 	std::fstream seg_file;
-	seg_file.open(segname.c_str(), std::fstream::out|std::fstream::binary);
+        //change:add directory
+	seg_file.open((rvm->directory+"/"+segname).c_str(), std::fstream::in|std::fstream::out|std::fstream::binary);
 	if(seg_file==NULL)
-		fprintf(stdout, "cannot open the file %s \n", segname.c_str());
+		fprintf(stdout, "cannot open the file %s at commit\n", segname.c_str());
         //Debug
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
@@ -117,13 +118,12 @@ void Transaction::commit(){
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
 	    //debug
-	    //seg_file.seekp(offset);
-	    //seg_file.write((char*)segbase+offset, len);
+	    seg_file.seekp(offset);
+	    seg_file.write((char*)segbase+offset, len);
 	}
 	    
 	logfile.close();
 	seg->beingModified = false; /* reset the busy bit */
-	fprintf(stderr, "reset seg %s \n", segname.c_str());
 	delete logs;
     }
 }
