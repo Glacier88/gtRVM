@@ -174,13 +174,6 @@ void Transaction::commit(){
 
 	/* open the log file */
 	std::string segname = seg->name; 
-	//open the back store
-	std::fstream seg_file;
-	seg_file.open((rvm->directory+"/"+segname).c_str(), 
-		      std::fstream::in|std::fstream::out|std::fstream::binary);
-	if(seg_file==NULL)
-	    fprintf(stderr, "cannot open the file %s at commit\n", segname.c_str());
-        //Debug
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
 	logfile.open(logFileName, std::ofstream::binary | 
@@ -193,13 +186,9 @@ void Transaction::commit(){
 	    logfile.write((char*)&offset, sizeof(int));
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
-	    //debug
-	    //seg_file.seekp(offset);
-	    //seg_file.write((char*)segbase+offset, len);
 	}
 	    
 	logfile.close(); 
-	seg_file.close();
 	seg->beingModified = false; /* reset the busy bit */
 	delete logs;
     }
