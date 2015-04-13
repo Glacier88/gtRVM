@@ -1,5 +1,41 @@
-Implementation structure:
+Mon Apr 13 19:14:56 EDT 2015
 
+Authors :
+	Xiong Ding 902934749
+	Yuebin Zhou 903005133
+==================================================
+
+1 How to use logfiles to achieve persistency ?
+
+Log files are created and expanded whenever the user commits the 
+changes of segments. Also, every time the user maps a segment
+file into memory, it will first apply the corresponding log file
+to the segement file, then load the segment into memory. 
+
+Whenever the user aborts the changes, the undo copy will be copied 
+back to segment in memory and the logs are discarded. In this
+way, persistency is maintained.
+
+2 What do log files contain ?
+
+Log files are binary files. They contain runlength structure:
+(offset,  length,  changed content) continuously. These 
+three components are enough for recovery purpose.
+
+3 How to clean log files ?
+
+The "truncate()" method will apply the log files to segment files,
+after which, the log files are deleated. Note, we only apply the
+log files whose corresponding segment is not active. 
+
+Also, as stated above, at the map stage, a particular log file will
+be applied to segment file before it is loaded into memory.
+
+==================================================
+
+Implementation structure and details :
+
+The implementation is contains 2 modules.
 We use two classes to realize the functionality of 
 RVM: 
      Rvmt()  && Transaction()
@@ -13,4 +49,11 @@ are used to store information
 about the mapped segments. The two hash table have the
 same contents but different keys, since the APIs 
 requires looks up both by segment name and its address.
+
+In Transaction(), a Log hashmap contains all created log
+for the corresponding segments. It supports commit operation
+and abort operation.
+
+For efficiency, type 'rvm_t' and 'trans_t' are defined as pointers
+to these tow classes.
 
