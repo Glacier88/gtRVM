@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fstream>
+#include <iostream>
 #include <cassert>
 #include <cstring>
 #include <unistd.h>
@@ -19,8 +20,10 @@ typedef struct {
     bool beingModified=false;	/* busy bit */
 } Segment;
 
+
 typedef std::unordered_map<std::string, Segment*> SegNameMap;
 typedef std::unordered_map<void*, Segment*> SegPtrMap;
+/* Log : offset + content. */
 typedef std::pair<int, std::string> Log;
 typedef std::vector<Log> Logs;
 typedef std::unordered_map<void*, Logs* > LogsMap;
@@ -42,18 +45,23 @@ public:
     Segment* create_seg(std::string segname, int size);
     void delete_seg(Segment *seg);
     void load_seg(Segment *seg, int size_to_create);
-    
+    void apply_log(std::string segName);
+    void truncate_log();
+
+    void print_file(std::string file); /* only used for debug */
 };
 typedef Rvmt* rvm_t;		/* rvmt points to _rvm_t  */
+
 class Transaction {
 public:
-    Rvmt *rvm;
-    LogsMap undo;
+    Rvmt *rvm;			/* the rvm that is associated with */
+    LogsMap undo;		/* undo copy */
     Logs* find_logs(void *segbase);
     void create_logs(void* segbase);
     void append_log(Logs* logs, void *segbase, int offset, int size);
     void commit();
     void abort();
 };
-typedef Transaction* trans_t;
+typedef Transaction* trans_t;	/* trans_t points to Transaction */
+
 #endif 		/* RVM_INTERNAL_H */

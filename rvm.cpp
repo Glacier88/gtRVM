@@ -1,4 +1,5 @@
 #include "rvm.h"
+using namespace std;
 
 //////////////////////////////////////////////////////////////////////
 //                  Implementation of Rvmt                          //
@@ -35,7 +36,8 @@ void Rvmt::delete_seg(Segment *seg){
 }
 
 void Rvmt::load_seg(Segment *seg, int size_to_create){
-    std::fstream file(directory+"/"+seg->name,std::fstream::binary | std::fstream::out | std::fstream::in);
+    std::fstream file(directory+"/"+seg->name, std::fstream::binary | 
+		      std::fstream::out | std::fstream::in);
     //Debug
     if(!file){
     	file.open(directory+"/"+seg->name,std::fstream::binary | std::fstream::out);
@@ -53,20 +55,96 @@ void Rvmt::load_seg(Segment *seg, int size_to_create){
 	    char c = '\0';
 	    file.write(&c, 1);
 	}
-	    
+	
 	assert ( seg->content.size() == size_to_create);
+	file.seekg(0, file.beg); /* rewind to the beginning */
 	file.read(&(seg->content[0]), size_to_create);
 	file.close();
-	    
-	//std::cout.write (&(seg->content[0]), size_to_create);
+
     }
     else{
 	fprintf(stderr, "cannot open the file %s \n", seg->name.c_str());
 	exit(-1);
     }
 }
+
+/** @brief apply the content in "segName.log" into segment file
+ *         "segName". This procedure is done in the truncation
+ *         of logs. Also is called before a segment is mapped into
+ *         memory.
+ */
+void Rvmt::apply_log(std::string segName){
+    const std::string segFileName = directory + "/" + segName;
+    const std::string logFileName = directory + "/" + segName + ".log";
+    std::ifstream logfile;
+    std::ofstream segfile;
+    logfile.open(logFileName, std::ifstream::in | std::ifstream::binary);
+    segfile.open(segFileName, std::ofstream::out | std::ofstream::binary);
+
+    if(logfile && segfile){
+	int offset;
+	int len;
+	
+	logfile.seekg(0, logfile.beg);	
+	while( logfile.read((char *)&offset, sizeof(int)) ) {
+	    logfile.read((char *)&len, sizeof(int));
+	    std::string content(len, '\0');
+	    // copy the content in the log to the segment
+	    logfile.read(&content[0], len);
+	    segfile.seekp(offset);
+	    segfile.write(&content[0], len);
+	}
+
+	logfile.close();
+	segfile.close();
     
-    
+	// after the log is applied, it is of no use. Just delete it.
+	unlink(logFileName.c_str()); 
+	//std::string command = "truncate -s 0\t" + logFileName;
+	//system(command.c_str());
+    }
+}
+
+/** @brief truncate the log files whose corresponding segments
+ *         are not currently mapped 
+ */
+void Rvmt::truncate_log(){
+    DIR *store_dir;
+    dirent *dir_entry;
+    store_dir=opendir(directory.c_str());
+    if(store_dir==NULL)
+	return;
+    while((dir_entry=readdir(store_dir)) != NULL){
+	std::string fname = dir_entry->d_name;
+	size_t idx=fname.rfind(".log");
+	if(idx==std::string::npos)
+	    continue;
+	std::string seg_name=fname.substr(0,idx);
+	// only apply logs when the segments are not mapped right now
+	if(find_by_name(seg_name) == NULL){
+	    apply_log(seg_name);
+	}	
+    }
+}
+
+/** @brief debug function.
+ *
+ *         used to print out the content of a binary file. This
+ *         file can be a log file or a segment file.
+ */
+void Rvmt::print_file(std::string file){
+    const std::string fileName = directory + "/" + file;
+    std::ifstream f;
+    f.open(fileName, std::ofstream::in | std::ofstream::binary);
+    /* get length of file: */
+    f.seekg (0, f.end); 
+    int length = f.tellg();
+    f.seekg (0, f.beg);
+    std::string content(length, '\0');
+    f.read(&content[0], length);
+    cout << content << endl;
+    f.close();
+}
 
 //////////////////////////////////////////////////////////////////////
 //               Implementation of Transaction                      //
@@ -98,9 +176,10 @@ void Transaction::commit(){
 	std::string segname = seg->name; 
 	//open the back store
 	std::fstream seg_file;
-	seg_file.open((rvm->directory+"/"+segname).c_str(), std::fstream::in|std::fstream::out|std::fstream::binary);
+	seg_file.open((rvm->directory+"/"+segname).c_str(), 
+		      std::fstream::in|std::fstream::out|std::fstream::binary);
 	if(seg_file==NULL)
-		fprintf(stdout, "cannot open the file %s at commit\n", segname.c_str());
+	    fprintf(stderr, "cannot open the file %s at commit\n", segname.c_str());
         //Debug
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
@@ -115,11 +194,12 @@ void Transaction::commit(){
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
 	    //debug
-	    seg_file.seekp(offset);
-	    seg_file.write((char*)segbase+offset, len);
+	    //seg_file.seekp(offset);
+	    //seg_file.write((char*)segbase+offset, len);
 	}
 	    
-	logfile.close();
+	logfile.close(); 
+	seg_file.close();
 	seg->beingModified = false; /* reset the busy bit */
 	delete logs;
     }
@@ -143,6 +223,8 @@ void Transaction::abort(){
     }
 }
 
+
+
 //////////////////////////////////////////////////////////////////////
 //               Implementation of RVM                              //
 //////////////////////////////////////////////////////////////////////
@@ -165,9 +247,12 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
+	// first apply existing changes to the segment file
+	rvm->apply_log(segname);
+	// load the segment file into memory
 	rvm->load_seg(newSeg, size_to_create);
 	// return new allocated memory
-	return &(newSeg->content[0]);
+	return newSeg->ptr;
     }
     else{
 	fprintf(stderr, "cannot map the same segment twice ! \n");
@@ -192,11 +277,14 @@ void rvm_unmap(rvm_t rvm, void *segbase) {
 void rvm_destroy(rvm_t rvm, const char *segname) {
 	Segment* seg=rvm->find_by_name(segname);
 	//Should not be called if the segment is mapped
-	if(seg!=NULL)
-		return;
-        std::string seg_file=rvm->directory+"/"+segname;
+	if(seg != NULL)
+	    return;
+	
+	// erase the back store
+        std::string seg_file = rvm->directory+"/"+segname;
 	unlink(seg_file.c_str());
-	std::string log_file=seg_file.append(".log");
+	// erase the log too
+	std::string log_file = seg_file.append(".log");
 	unlink(log_file.c_str());
 }
 
@@ -276,23 +364,7 @@ void rvm_abort_trans(trans_t tid){
 }
 
 void rvm_truncate_log(rvm_t rvm){
-	DIR *store_dir;
-	dirent *dir_entry;
-	store_dir=opendir(rvm->directory.c_str());
-	if(store_dir==NULL)
-		return;
-	while((dir_entry=readdir(store_dir))!=NULL){
-		std::string fname=dir_entry->d_name;
-		size_t idx=fname.rfind(".log");
-		if(idx==std::string::npos)
-			continue;
-		std::string seg_name=fname.substr(0,idx);
-		std::string log_name=rvm->directory+"/"+seg_name+".log";
-		if(rvm->find_by_name(seg_name)==NULL){
-			std::string command="truncate -s 0\t"+log_name;
-			system(command.c_str());		
-	        }	
-	}
+    rvm->truncate_log();
 }
 
 
