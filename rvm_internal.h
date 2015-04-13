@@ -36,10 +36,11 @@ public:
     SegPtrMap seg_ptr;	     /* list of existing segments */
         
     Rvmt(const char *dir) : directory(dir) {
-	// if the directory already exists, then mkdir return -1
-	mkdir(dir, 0755); //create directory for log files
+	/* if the directory already exists, then mkdir return -1*/
+        /*create directory for log files*/
+	mkdir(dir, 0755); 
     }
-    ~Rvmt(){}   
+    ~Rvmt(){}  
     Segment* find_by_name(std::string segname);
     Segment* find_by_ptr(void *p);    
     Segment* create_seg(std::string segname, int size);
@@ -47,8 +48,7 @@ public:
     void load_seg(Segment *seg, int size_to_create);
     void apply_log(std::string segName);
     void truncate_log();
-
-    void print_file(std::string file); /* only used for debug */
+    void print_file(std::string file); 
 };
 typedef Rvmt* rvm_t;		/* rvmt points to _rvm_t  */
 

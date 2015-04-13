@@ -5,18 +5,21 @@ using namespace std;
 //                  Implementation of Rvmt                          //
 //////////////////////////////////////////////////////////////////////
 
+/*Search segment instance by name*/ 
 Segment* Rvmt::find_by_name(std::string segname){
     SegNameMap::iterator iter = seg_name.find(segname);
     if(iter == seg_name.end()) return NULL;
     else return iter->second;
 }
 
+/*Seach segment instance by the pointer of its content*/
 Segment* Rvmt::find_by_ptr(void *p){
     SegPtrMap::iterator iter = seg_ptr.find(p);
     if(iter == seg_ptr.end()) return NULL;
     else return iter->second;
 }
 
+/*Create a segment in memory*/
 Segment* Rvmt::create_seg(std::string segname, int size){
     Segment* seg = new Segment; 
     seg->name=segname;
@@ -27,6 +30,7 @@ Segment* Rvmt::create_seg(std::string segname, int size){
     return seg;
 }
 
+/*Delete a segment from memory*/
 void Rvmt::delete_seg(Segment *seg){
     std::string segname = seg->name;
     void *p = seg->ptr;
@@ -35,32 +39,28 @@ void Rvmt::delete_seg(Segment *seg){
     delete seg;
 }
 
+/*load segment to memory from disk*/
 void Rvmt::load_seg(Segment *seg, int size_to_create){
     std::fstream file(directory+"/"+seg->name, std::fstream::binary | 
 		      std::fstream::out | std::fstream::in);
-    //Debug
     if(!file){
     	file.open(directory+"/"+seg->name,std::fstream::binary | std::fstream::out);
     }
-
-    if (file) { // successfully open the file
+    if (file) { 
 	/* get length of file: */
 	file.seekg (0, file.end); 
 	int length = file.tellg();
-	file.seekg (0, file.beg);
-	    
+	file.seekg (0, file.beg);	    
 	if (length < size_to_create){
 	    /* set pos to size-1 => after writing one char, we get size */
 	    file.seekp(size_to_create-1);
 	    char c = '\0';
 	    file.write(&c, 1);
-	}
-	
+	}	
 	assert ( seg->content.size() == size_to_create);
 	file.seekg(0, file.beg); /* rewind to the beginning */
 	file.read(&(seg->content[0]), size_to_create);
 	file.close();
-
     }
     else{
 	fprintf(stderr, "cannot open the file %s \n", seg->name.c_str());
@@ -80,11 +80,9 @@ void Rvmt::apply_log(std::string segName){
     std::ofstream segfile;
     logfile.open(logFileName, std::ifstream::in | std::ifstream::binary);
     segfile.open(segFileName, std::ofstream::out | std::ofstream::binary);
-
     if(logfile && segfile){
 	int offset;
-	int len;
-	
+	int len;	
 	logfile.seekg(0, logfile.beg);	
 	while( logfile.read((char *)&offset, sizeof(int)) ) {
 	    logfile.read((char *)&len, sizeof(int));
@@ -94,14 +92,10 @@ void Rvmt::apply_log(std::string segName){
 	    segfile.seekp(offset);
 	    segfile.write(&content[0], len);
 	}
-
 	logfile.close();
 	segfile.close();
-    
 	// after the log is applied, it is of no use. Just delete it.
 	unlink(logFileName.c_str()); 
-	//std::string command = "truncate -s 0\t" + logFileName;
-	//system(command.c_str());
     }
 }
 
@@ -150,35 +144,37 @@ void Rvmt::print_file(std::string file){
 //               Implementation of Transaction                      //
 //////////////////////////////////////////////////////////////////////
 
+/*Search log by segment pointer*/
 Logs* Transaction::find_logs(void *segbase){
     LogsMap::iterator iter = undo.find(segbase);
     if(iter == undo.end()) return NULL;
     else return iter->second;
 }
 
+/*Create log for a segment in the transaction*/
 void Transaction::create_logs(void* segbase){
     Logs *logs = new Logs;
     undo.emplace(segbase, logs);
 }
 
+/*Append a new record to the log*/
 void Transaction::append_log(Logs* logs, void *segbase, int offset, int size){
     Log a(offset, std::string( (char*)segbase + offset, size));
     logs->push_back(a);
 }
 
+/*Commit the transaction*/
 void Transaction::commit(){
     for(LogsMap::iterator iter = undo.begin(); iter != undo.end(); iter++){    
 	void* segbase = iter->first;
 	Logs* logs = iter->second;
 	Segment* seg = rvm -> find_by_ptr(segbase); 
-
 	/* open the log file */
 	std::string segname = seg->name; 
 	std::string logFileName = rvm->directory+"/"+segname+".log";
 	std::ofstream logfile;
 	logfile.open(logFileName, std::ofstream::binary | 
-		     std::ofstream::out | std::ofstream::app);
-	 
+		     std::ofstream::out | std::ofstream::app); 
 	/* write changed data (offset, length, new data) onto disk */
 	for (size_t i = 0; i < logs->size(); i++) {
 	    int offset = (*logs)[i].first;
@@ -186,32 +182,28 @@ void Transaction::commit(){
 	    logfile.write((char*)&offset, sizeof(int));
 	    logfile.write((char*)&len, sizeof(int));
 	    logfile.write((char*)segbase+offset, len);
-	}
-	    
+	}	    
 	logfile.close(); 
 	seg->beingModified = false; /* reset the busy bit */
 	delete logs;
     }
 }
 
+/*Abort the trunsaction*/
 void Transaction::abort(){
-    for(LogsMap::iterator iter = undo.begin(); iter != undo.end(); iter++){
-	    
+    for(LogsMap::iterator iter = undo.begin(); iter != undo.end(); iter++){    
 	void* segbase = iter->first;
-	Logs* logs = iter->second;
-	    	 
+	Logs* logs = iter->second;    	 
 	/* copy the logs back to segments in memory */
 	for (size_t i = 0; i < logs->size(); i++) {
 	    int offset = (*logs)[i].first;
 	    int len = (*logs)[i].second.size();
 	    char *a = &( ( (*logs)[i].second )[0] );
 	    memcpy((char*)segbase+offset, a, len);
-	}
-	    
+	}    
 	delete logs;
     }
 }
-
 
 
 //////////////////////////////////////////////////////////////////////
@@ -221,18 +213,14 @@ void Transaction::abort(){
 rvm_t rvm_init(const char *directory){
     // need to consider the case when directory already exists.
     rvm_t rvm = new Rvmt(directory);  
-    
-    return rvm;              //return the rvm
+    return rvm;              
 }
-
 // procedure:
 // 1 check for redo log, if it exists, then apply it to both the segment
 //   on disk and in memory
 // 2 load the content of the disk segment to memory.
-// 
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
     if(size_to_create <= 0) return (void*) -1;
-
     Segment* seg = rvm->find_by_name(segname);
     if(seg == NULL){
 	Segment* newSeg = rvm->create_seg(segname, size_to_create);
@@ -268,11 +256,10 @@ void rvm_destroy(rvm_t rvm, const char *segname) {
 	//Should not be called if the segment is mapped
 	if(seg != NULL)
 	    return;
-	
-	// erase the back store
+	/* delete the back store*/
         std::string seg_file = rvm->directory+"/"+segname;
 	unlink(seg_file.c_str());
-	// erase the log too
+	/* delete the log too*/
 	std::string log_file = seg_file.append(".log");
 	unlink(log_file.c_str());
 }
@@ -299,7 +286,6 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	    }
 	}
     }
-    
     return trans;
 }
 
@@ -326,9 +312,6 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
     }
 }
 
-/**
- *
- */
 void rvm_commit_trans(trans_t tid){
     if(tid == (trans_t) -1 || tid == NULL){
 	fprintf(stderr, "transaction does not exist !\n");
@@ -339,7 +322,6 @@ void rvm_commit_trans(trans_t tid){
 	delete tid;
     }
 }
-
 
 void rvm_abort_trans(trans_t tid){
     if(tid == (trans_t) -1 || tid == NULL){
