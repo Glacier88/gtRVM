@@ -3,6 +3,11 @@ Mon Apr 13 19:14:56 EDT 2015
 Authors :
 	Xiong Ding 902934749
 	Yuebin Zhou 903005133
+
+Important:
+	Our code requires compiler flag '-std=c++11' 
+
+
 ==================================================
 
 1 How to use logfiles to achieve persistency ?
